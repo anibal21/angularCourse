@@ -1,9 +1,9 @@
 import { Injectable } from "@angular/core";
-import { CLIENTES } from "./clientes.json";
+import { DatePipe } from '@angular/common';
 import { Cliente } from "./cliente";
 import { Observable, throwError } from "rxjs";
 import { HttpClient, HttpHeaders } from "@angular/common/http";
-import { map, catchError } from "rxjs/operators";
+import { map, catchError, tap } from "rxjs/operators";
 import swal from 'sweetalert2'
 import { Router } from '@angular/router';
 
@@ -19,13 +19,39 @@ export class ClienteService {
   getClientes = (): Observable<Cliente[]> =>
     this.http
       .get(this.urlEndpoint)
-      .pipe(map(response => response as Cliente[]));
+      .pipe(
+        tap(response => {
+          let clientes = response as Cliente[];
+          clientes.forEach(cliente => {
+            console.log(cliente.nombre)
+          });
+        }),
+        map(response => {
+        let clientes = response as Cliente[];
+
+        return clientes.map(cliente => {
+          cliente.nombre = cliente.nombre.toUpperCase();
+          //let datePipe = new DatePipe('es');
+          //cliente.createAt = datePipe.transform(cliente.createAt, 'EEEE dd, MMMM yyyy', 'en-US');
+          return cliente;
+        });
+      }),
+      tap(response => {
+        response.forEach(cliente => {
+          console.log(cliente.nombre)
+        });
+      }));
 
   create = (cliente: Cliente): Observable<Cliente> =>
     this.http.post<Cliente>(this.urlEndpoint, cliente, {
       headers: this.httpHeaders
     }).pipe(
       catchError(e => {
+
+        if(e.status === 400){
+          return throwError(e);
+        }
+
         console.error(e);
         swal("Error al crear al cliente", e.error.mensaje, "error");
         return throwError(e);
@@ -33,10 +59,17 @@ export class ClienteService {
     );
 
   getCliente = (id: number): Observable<Cliente> =>
-    this.http.get<Cliente>(`${this.urlEndpoint}/${id}`).pipe(catchError(e => {
-      this.router.navigate(['/clientes']);
-      swal("Error al editar", e.error.message, "error");
-      return throwError(e);
+    this.http.get<Cliente>(`${this.urlEndpoint}/${id}`)
+      .pipe(
+        catchError(e => {
+
+        if(e.status === 400){
+          return throwError(e);
+        }
+
+        this.router.navigate(['/clientes']);
+        swal("Error al editar", e.error.message, "error");
+        return throwError(e);
     }));
 
   update = (cliente: Cliente): Observable<Cliente> =>
